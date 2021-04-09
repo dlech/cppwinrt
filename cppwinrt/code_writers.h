@@ -1589,7 +1589,7 @@ namespace cppwinrt
     {
         type_name type_name(type);
 
-        if (type_name == "Windows.Foundation.Collections.IIterator`1")
+        if (type_name == "Windows.Foundation.Collections.IIterator")
         {
             w.write(R"(
         using iterator_concept = std::input_iterator_tag;
@@ -1611,7 +1611,7 @@ namespace cppwinrt
         using reference = Windows::Foundation::IInspectable;
 )");
         }
-        else if (type_name == "Windows.Foundation.IReference`1")
+        else if (type_name == "Windows.Foundation.IReference")
         {
             w.write(R"(        IReference(T const& value) : IReference<T>(impl::reference_traits<T>::make(value))
         {
