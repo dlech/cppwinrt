@@ -1113,22 +1113,22 @@ namespace cppwinrt
         auto method_name = get_name(method);
         method_signature signature{ method };
         auto async_types_guard = w.push_async_types(signature.is_async());
-
+        auto is_noexcept = cppwinrt::is_noexcept(method);
         std::string_view format;
 
-        if (is_noexcept(method))
+        if (empty(generics))
         {
-            format = R"(    template <typename D%> WINRT_IMPL_AUTO(%) consume_%<D%>::%(%) const noexcept
+            format = R"(    inline %WINRT_IMPL_AUTO(%) consume_%<D%>::%(%) const%
     {%
-        WINRT_VERIFY_(0, WINRT_IMPL_SHIM(%)->%(%));%
+        %WINRT_IMPL_SHIM(%)->%(%));%
     }
 )";
         }
         else
         {
-            format = R"(    template <typename D%> WINRT_IMPL_AUTO(%) consume_%<D%>::%(%) const
+            format = R"(    template <%> WINRT_IMPL_AUTO(%) consume_%<%>::%(%) const%
     {%
-        check_hresult(WINRT_IMPL_SHIM(%)->%(%));%
+        %WINRT_IMPL_SHIM(%)->%(%));%
     }
 )";
         }
@@ -1140,33 +1140,46 @@ namespace cppwinrt
             bind<write_comma_generic_types>(generics),
             method_name,
             bind<write_consume_params>(signature),
+            is_noexcept ? " noexcept" : "",
             bind<write_consume_return_type>(signature, false),
+            is_noexcept ? "WINRT_VERIFY_(0, " : "check_hresult(",
             type,
             get_abi_name(method),
             bind<write_abi_args>(signature),
             bind<write_consume_return_statement>(signature));
 
-        if (is_add_overload(method))
-        {
-            format = R"(    template <typename D%> typename consume_%<D%>::%_revoker consume_%<D%>::%(auto_revoke_t, %) const
-    {
-        return impl::make_event_revoker<D, %_revoker>(this, %(%));
-    }
-)";
-
-            w.write(format,
-                bind<write_comma_generic_typenames>(generics),
-                type_impl_name,
-                bind<write_comma_generic_types>(generics),
-                method_name,
-                type_impl_name,
-                bind<write_comma_generic_types>(generics),
-                method_name,
-                bind<write_consume_params>(signature),
-                method_name,
-                method_name,
-                bind<write_consume_args>(signature));
-        }
+//        if (is_add_overload(method))
+//        {
+//            if (empty(generics))
+//            {
+//                format = R"(    %typename consume_%%::%_revoker consume_%%::%(auto_revoke_t, %) const
+//    {
+//        return impl::make_event_revoker<D, %_revoker>(this, %(%));
+//    }
+//)";
+//            }
+//            else
+//            {
+//                format = R"(    template <typename D%> typename consume_%<D%>::%_revoker consume_%<D%>::%(auto_revoke_t, %) const
+//    {
+//        return impl::make_event_revoker<D, %_revoker>(this, %(%));
+//    }
+//)";
+//            }
+//
+//            w.write(format,
+//                bind<write_comma_generic_typenames>(generics),
+//                type_impl_name,
+//                bind<write_comma_generic_types>(generics),
+//                method_name,
+//                type_impl_name,
+//                bind<write_comma_generic_types>(generics),
+//                method_name,
+//                bind<write_consume_params>(signature),
+//                method_name,
+//                method_name,
+//                bind<write_consume_args>(signature));
+//        }
     }
 
     static void write_consume_fast_base_definition(writer& w, MethodDef const& method, TypeDef const& class_type, TypeDef const& base_type)

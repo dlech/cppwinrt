@@ -298,6 +298,11 @@ Where <spec> is one or more of:
 
             for (auto&&[ns, members] : c.namespaces())
             {
+                if (!ns._Starts_with("Windows.Foundation"))
+                {
+                    continue;
+                }
+
                 if (!has_projected_types(members) || !settings.projection_filter.includes(members))
                 {
                     continue;
