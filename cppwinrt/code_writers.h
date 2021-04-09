@@ -1513,14 +1513,9 @@ namespace cppwinrt
 
         if (empty(generics))
         {
-            auto format = R"(    template <typename D>
-    struct consume_%
+            auto format = R"(    struct consume_%
     {
 %%%    };
-    template <> struct consume<%>
-    {
-        template <typename D> using type = consume_%<D>;
-    };
 )";
 
 
@@ -1528,20 +1523,14 @@ namespace cppwinrt
                 impl_name,
                 bind_each<write_consume_declaration>(type.MethodList()),
                 bind<write_fast_consume_declarations>(type),
-                bind<write_consume_extensions>(type),
-                type,
-                impl_name);
+                bind<write_consume_extensions>(type));
         }
         else
         {
-            auto format = R"(    template <typename D, %>
+            auto format = R"(    template <%>
     struct consume_%
     {
 %%%    };
-    template <%> struct consume<%>
-    {
-        template <typename D> using type = consume_%<D, %>;
-    };
 )";
 
 
@@ -1550,11 +1539,7 @@ namespace cppwinrt
                 impl_name,
                 bind_each<write_consume_declaration>(type.MethodList()),
                 bind<write_fast_consume_declarations>(type),
-                bind<write_consume_extensions>(type),
-                bind<write_generic_typenames>(generics),
-                type,
-                impl_name,
-                bind_list(", ", generics));
+                bind<write_consume_extensions>(type));
         }
     }
 
