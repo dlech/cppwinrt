@@ -1,7 +1,16 @@
 #include "pch.h"
-#include <assert.h>
 
-int main(){}
+using namespace winrt;
+using namespace Windows::Foundation;
+
+int main()
+{
+    auto uri = Uri(L"http://kennykerr.ca");
+    printf("%ls\n", uri.ToString().c_str());
+
+    auto s = uri.as<IStringable>();
+    printf("%ls\n", s.ToString().c_str());
+}
 
 //template <typename T>
 //struct qi; // replaces impl::require
