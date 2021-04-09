@@ -1118,7 +1118,7 @@ namespace cppwinrt
 
         if (empty(generics))
         {
-            format = R"(    inline %WINRT_IMPL_AUTO(%) consume_%<D%>::%(%) const%
+            format = R"(    inline %WINRT_IMPL_AUTO(%) consume_%%::%(%) const%
     {%
         %WINRT_IMPL_SHIM(%)->%(%));%
     }
@@ -1293,10 +1293,10 @@ namespace cppwinrt
         {
             if (!MoveNext())
             {
-                static_cast<D&>(*this) = nullptr;
+                static_cast<::winrt::Windows::Foundation::IUnknown&>(*this) = nullptr;
             }
 
-            return static_cast<D&>(*this);
+            return *this;
         }
 
         auto operator*() const
@@ -1328,10 +1328,10 @@ namespace cppwinrt
         {
             if (!MoveNext())
             {
-                static_cast<D&>(*this) = nullptr;
+                static_cast<::winrt::Windows::Foundation::IUnknown&>(*this) = nullptr;
             }
 
-            return static_cast<D&>(*this);
+            return *this;
         }
 
         T operator*() const
@@ -2248,14 +2248,14 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
             return;
         }
 
-        w.write(",\n        impl::require<%", type);
+        w.write("impl::require<%", type);
 
         for (auto&& [name, info] : interfaces)
         {
             w.write(", %", name);
         }
 
-        w.write('>');
+        w.write(">, ");
     }
 
     static void write_interface_usings(writer& w, TypeDef const& type)
@@ -2347,11 +2347,13 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
         auto generics = type.GenericParam();
         auto guard{ w.push_generic_params(generics) };
 
+        // TODO: here's where we need to add the method declarations
+
         if (empty(generics))
         {
             auto format = R"(    struct __declspec(empty_bases) % :
-        winrt::Windows::Foundation::IInspectable,
-        impl::consume_t<%>%
+        %winrt::Windows::Foundation::IInspectable
+        
     {
         %(std::nullptr_t = nullptr) noexcept {}
         %(void* ptr, take_ownership_from_abi_t) noexcept : winrt::Windows::Foundation::IInspectable(ptr, take_ownership_from_abi) {}
@@ -2363,7 +2365,6 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
 )";
 
             w.write(format,
-                type_name,
                 type_name,
                 bind<write_interface_requires>(type),
                 type_name,
@@ -2385,8 +2386,7 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
 
             auto format = R"(    template <%>
     struct __declspec(empty_bases) % :
-        winrt::Windows::Foundation::IInspectable,
-        impl::consume_t<%>%
+        %winrt::Windows::Foundation::IInspectable
     {%
         %(std::nullptr_t = nullptr) noexcept {}
         %(void* ptr, take_ownership_from_abi_t) noexcept : winrt::Windows::Foundation::IInspectable(ptr, take_ownership_from_abi) {}
@@ -2400,7 +2400,6 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
             w.write(format,
                 bind<write_generic_typenames>(generics),
                 type_name,
-                type,
                 bind<write_interface_requires>(type),
                 bind<write_generic_asserts>(generics),
                 type_name,
