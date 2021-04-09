@@ -14,7 +14,7 @@
 #endif
 
 // TODO: simplify
-#define WINRT_IMPL_SHIM(...) (*(abi_t<__VA_ARGS__>**)&static_cast<__VA_ARGS__ const&>(static_cast<::winrt::Windows::Foundation::IUnknown&>(*this).try_as<__VA_ARGS__>()))
+#define WINRT_IMPL_SHIM(...) (*(abi_t<__VA_ARGS__>**)&static_cast<__VA_ARGS__ const&>((*reinterpret_cast<::winrt::Windows::Foundation::IUnknown const*>(this)).try_as<__VA_ARGS__>()))
 
 #ifdef __INTELLISENSE__
 #define WINRT_IMPL_AUTO(...) __VA_ARGS__

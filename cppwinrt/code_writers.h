@@ -290,6 +290,17 @@ namespace cppwinrt
         }
     }
 
+    static void write_generic_types(writer& w, std::pair<GenericParam, GenericParam> const& params)
+    {
+        separator s{ w };
+
+        for (auto&& param : params)
+        {
+            s();
+            w.write("%", param);
+        }
+    }
+
     static void write_forward(writer& w, TypeDef const& type)
     {
         type_name type_name(type);
@@ -1134,10 +1145,10 @@ namespace cppwinrt
         }
 
         w.write(format,
-            bind<write_comma_generic_typenames>(generics),
+            bind<write_generic_typenames>(generics),
             signature.return_signature(),
             type_impl_name,
-            bind<write_comma_generic_types>(generics),
+            bind<write_generic_types>(generics),
             method_name,
             bind<write_consume_params>(signature),
             is_noexcept ? " noexcept" : "",
