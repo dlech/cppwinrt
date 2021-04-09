@@ -2243,19 +2243,11 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
     {
         auto interfaces = get_interfaces(w, type);
 
-        if (interfaces.empty())
-        {
-            return;
-        }
-
-        w.write("impl::require<%", type);
-
         for (auto&& [name, info] : interfaces)
         {
-            w.write(", %", name);
+            auto impl_name = get_impl_name(info.type.TypeNamespace(), info.type.TypeName());
+            w.write("consume_%, ", name);
         }
-
-        w.write(">, ");
     }
 
     static void write_interface_usings(writer& w, TypeDef const& type)
