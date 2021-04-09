@@ -189,6 +189,7 @@ namespace cppwinrt
         {
             auto wrap_type = wrap_type_namespace(w, ns);
             w.write_each<write_enum_operators>(members.enums);
+            w.write_each<write_interface_definitions>(members.interfaces);
             w.write_each<write_class_definitions>(members.classes);
             w.write_each<write_fast_class_base_definitions>(members.classes);
             w.write_each<write_delegate_definition>(members.delegates);

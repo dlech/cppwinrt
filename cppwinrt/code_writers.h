@@ -282,14 +282,6 @@ namespace cppwinrt
         }
     }
 
-    static void write_comma_generic_types(writer& w, std::pair<GenericParam, GenericParam> const& params)
-    {
-        for (auto&& param : params)
-        {
-            w.write(", %", param);
-        }
-    }
-
     static void write_generic_types(writer& w, std::pair<GenericParam, GenericParam> const& params)
     {
         separator s{ w };
@@ -760,6 +752,7 @@ namespace cppwinrt
         auto generics = type.GenericParam();
         auto guard{ w.push_generic_params(generics) };
 
+        // TODO: un-template the abi
         if (empty(generics))
         {
             auto format = R"(    template <> struct abi<%>
@@ -1193,6 +1186,81 @@ namespace cppwinrt
 //        }
     }
 
+    static void write_interface_definition(writer& w, TypeDef const& type, MethodDef const& method, std::pair<GenericParam, GenericParam> const& generics)
+    {
+        auto method_name = get_name(method);
+        method_signature signature{ method };
+        auto async_types_guard = w.push_async_types(signature.is_async());
+        auto is_noexcept = cppwinrt::is_noexcept(method);
+        std::string_view format;
+
+        // TODO: don't use WINRT_IMPL_SHIM but call abi directly 
+
+        if (empty(generics))
+        {
+            format = R"(    inline %WINRT_IMPL_AUTO(%) %::%(%) const%
+    {%
+        %WINRT_IMPL_SHIM(%)->%(%));%
+    }
+)";
+        }
+        else
+        {
+            format = R"(    template <%> WINRT_IMPL_AUTO(%) %::%(%) const%
+    {%
+        %WINRT_IMPL_SHIM(%)->%(%));%
+    }
+)";
+        }
+
+        w.write(format,
+            bind<write_generic_typenames>(generics),
+            signature.return_signature(),
+            type.TypeName(),
+            method_name,
+            bind<write_consume_params>(signature),
+            is_noexcept ? " noexcept" : "",
+            bind<write_consume_return_type>(signature, false),
+            is_noexcept ? "WINRT_VERIFY_(0, " : "check_hresult(",
+            type,
+            get_abi_name(method),
+            bind<write_abi_args>(signature),
+            bind<write_consume_return_statement>(signature));
+
+        //        if (is_add_overload(method))
+        //        {
+        //            if (empty(generics))
+        //            {
+        //                format = R"(    %typename consume_%%::%_revoker consume_%%::%(auto_revoke_t, %) const
+        //    {
+        //        return impl::make_event_revoker<D, %_revoker>(this, %(%));
+        //    }
+        //)";
+        //            }
+        //            else
+        //            {
+        //                format = R"(    template <typename D%> typename consume_%<D%>::%_revoker consume_%<D%>::%(auto_revoke_t, %) const
+        //    {
+        //        return impl::make_event_revoker<D, %_revoker>(this, %(%));
+        //    }
+        //)";
+        //            }
+        //
+        //            w.write(format,
+        //                bind<write_comma_generic_typenames>(generics),
+        //                type_impl_name,
+        //                bind<write_comma_generic_types>(generics),
+        //                method_name,
+        //                type_impl_name,
+        //                bind<write_comma_generic_types>(generics),
+        //                method_name,
+        //                bind<write_consume_params>(signature),
+        //                method_name,
+        //                method_name,
+        //                bind<write_consume_args>(signature));
+        //        }
+    }
+
     static void write_consume_fast_base_definition(writer& w, MethodDef const& method, TypeDef const& class_type, TypeDef const& base_type)
     {
         auto method_name = get_name(method);
@@ -1240,6 +1308,53 @@ namespace cppwinrt
                 method_name,
                 method_name,
                 bind<write_consume_args>(signature));
+        }
+    }
+
+    static void write_interface_definitions(writer& w, TypeDef const& type)
+    {
+        auto generics = type.GenericParam();
+        auto guard{ w.push_generic_params(generics) };
+        auto type_name = type.TypeName();
+
+        if (!empty(generics))
+        {
+            type_name = remove_tick(type_name);
+        }
+
+        for (auto&& method : type.MethodList())
+        {
+            write_interface_definition(w, type, method, generics);
+        }
+
+        if (!settings.fastabi)
+        {
+            return;
+        }
+
+        auto pair = settings.fastabi_cache.find(type);
+
+        if (pair == settings.fastabi_cache.end())
+        {
+            return;
+        }
+
+        for (auto&& [name, info] : get_interfaces(w, pair->second))
+        {
+            if (info.is_default)
+            {
+                continue;
+            }
+
+            if (!info.fastabi)
+            {
+                break;
+            }
+
+            for (auto&& method : info.type.MethodList())
+            {
+                write_interface_definition(w, type, method, generics);
+            }
         }
     }
 
@@ -2383,7 +2498,6 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
         if (empty(generics))
         {
             auto format = R"(    struct __declspec(empty_bases) % : winrt::Windows::Foundation::IInspectable%
-        
     {
         %(std::nullptr_t = nullptr) noexcept {}
         %(void* ptr, take_ownership_from_abi_t) noexcept : winrt::Windows::Foundation::IInspectable(ptr, take_ownership_from_abi) {}
@@ -2391,7 +2505,7 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
         %(%&&) noexcept = default;
         %& operator=(% const&) & noexcept = default;
         %& operator=(%&&) & noexcept = default;
-%%    };
+%%%%%    };
 )";
 
             w.write(format,
@@ -2408,7 +2522,10 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
                 type_name, // %& operator=(T&&)
                 type_name, // T& operator=(%&&)
                 bind<write_interface_usings>(type),
-                bind<write_interface_extensions>(type));
+                bind<write_interface_extensions>(type),
+                bind_each<write_consume_declaration>(type.MethodList()),
+                bind<write_fast_consume_declarations>(type),
+                bind<write_consume_extensions>(type));
         }
         else
         {
@@ -2423,7 +2540,7 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
         %(%&&) noexcept = default;
         %& operator=(% const&) & noexcept = default;
         %& operator=(%&&) & noexcept = default;
-%%    };
+%%%%%    };
 )";
 
             w.write(format,
@@ -2442,7 +2559,10 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
                 type_name, // %& operator=(T&&)
                 type_name, // T& operator=(%&&)
                 bind<write_interface_usings>(type),
-                bind<write_interface_extensions>(type));
+                bind<write_interface_extensions>(type),
+                bind_each<write_consume_declaration>(type.MethodList()),
+                bind<write_fast_consume_declarations>(type),
+                bind<write_consume_extensions>(type));
         }
     }
 
