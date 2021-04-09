@@ -1063,7 +1063,7 @@ namespace cppwinrt
         }
         else if (category == param_category::generic_type)
         {
-            auto format = "\n        % %{ empty_value<%>() };";
+            auto format = "\n        % %{ impl::empty_value<%>() };";
             w.write(format, signature.return_signature(), signature.return_param_name(), signature.return_signature());
         }
         else
@@ -1120,11 +1120,13 @@ namespace cppwinrt
         auto is_noexcept = cppwinrt::is_noexcept(method);
         std::string_view format;
 
+        // TODO: maybe query and then call interface (not ABI)?
+
         if (empty(generics))
         {
             format = R"(    inline %WINRT_IMPL_AUTO(%) consume_%%::%(%) const%
     {%
-        %WINRT_IMPL_SHIM(%)->%(%));%
+        %WINRT_IMPL_QUERY(%)->%(%));%
     }
 )";
         }
@@ -1132,7 +1134,7 @@ namespace cppwinrt
         {
             format = R"(    template <%> WINRT_IMPL_AUTO(%) consume_%<%>::%(%) const%
     {%
-        %WINRT_IMPL_SHIM(%)->%(%));%
+        %WINRT_IMPL_QUERY(%)->%(%));%
     }
 )";
         }
@@ -1198,17 +1200,17 @@ namespace cppwinrt
 
         if (empty(generics))
         {
-            format = R"(    inline %WINRT_IMPL_AUTO(%) %::%(%) const%
+            format = R"(    inline %WINRT_IMPL_AUTO(%) %%::%(%) const%
     {%
-        %WINRT_IMPL_SHIM(%)->%(%));%
+        %WINRT_IMPL_DIRECT(%)->%(%));%
     }
 )";
         }
         else
         {
-            format = R"(    template <%> WINRT_IMPL_AUTO(%) %::%(%) const%
+            format = R"(    template <%> WINRT_IMPL_AUTO(%) %<%>::%(%) const%
     {%
-        %WINRT_IMPL_SHIM(%)->%(%));%
+        %WINRT_IMPL_DIRECT(%)->%(%));%
     }
 )";
         }
@@ -1216,7 +1218,8 @@ namespace cppwinrt
         w.write(format,
             bind<write_generic_typenames>(generics),
             signature.return_signature(),
-            type.TypeName(),
+            remove_tick(type.TypeName()), // TODO: TypeName hsould just remove tick
+            bind<write_generic_types>(generics),
             method_name,
             bind<write_consume_params>(signature),
             is_noexcept ? " noexcept" : "",
@@ -1499,7 +1502,7 @@ namespace cppwinrt
             else
             {
                 std::optional<V> result;
-                V value{ empty_value<V>() };
+                V value{ impl::empty_value<V>() };
 
                 if (0 == impl::check_hresult_allow_bounds(WINRT_IMPL_SHIM(Windows::Foundation::Collections::IMapView<K, V>)->Lookup(get_abi(key), put_abi(value))))
                 {
@@ -1525,7 +1528,7 @@ namespace cppwinrt
             else
             {
                 std::optional<V> result;
-                V value{ empty_value<V>() };
+                V value{ impl::empty_value<V>() };
 
                 if (0 == impl::check_hresult_allow_bounds(WINRT_IMPL_SHIM(Windows::Foundation::Collections::IMap<K, V>)->Lookup(get_abi(key), put_abi(value))))
                 {
