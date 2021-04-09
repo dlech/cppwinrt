@@ -2239,37 +2239,42 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
             bind<write_class_override_usings>(interfaces));
     }
 
+    static void write_required_name(writer& w, std::string_view const& name)
+    {
+        w.write(", impl::consume_");
+        auto last = ' ';
+
+        for (auto next : name.substr(7))
+        {
+            if (last == '<')
+            {
+                w.write(next);
+            }
+            else if (next == ':')
+            {
+                if (last == next)
+                {
+                    continue;
+                }
+
+                w.write('_');
+                last = next;
+            }
+            else
+            {
+                w.write(next);
+                last = next;
+            }
+        }
+    }
+
     static void write_interface_requires(writer& w, TypeDef const& type)
     {
         auto interfaces = get_interfaces(w, type);
 
         for (auto&& [name, info] : interfaces)
         {
-            w.write(", impl::consume_");
-            auto last = ' ';
-
-            for (auto next : name.substr(7))
-            {
-                if (last == '<')
-                {
-                    w.write(next);
-                }
-                else if (next == ':')
-                {
-                    if (last == next)
-                    {
-                        continue;
-                    }
-
-                    w.write('_');
-                    last = next;
-                }
-                else
-                {
-                    w.write(next);
-                    last = next;
-                }
-            }
+            write_required_name(w, name);
         }
     }
 
@@ -2783,25 +2788,12 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
 
     static void write_class_requires(writer& w, TypeDef const& type)
     {
-        bool first{ true };
-
         for (auto&& [interface_name, info] : get_interfaces(w, type))
         {
             if (!info.defaulted || info.base)
             {
-                if (first)
-                {
-                    first = false;
-                    w.write(",\n        impl::require<%", type.TypeName());
-                }
-
-                w.write(", %", interface_name);
+                write_required_name(w, interface_name);
             }
-        }
-
-        if (!first)
-        {
-            w.write('>');
         }
     }
 
