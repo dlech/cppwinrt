@@ -2245,8 +2245,31 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
 
         for (auto&& [name, info] : interfaces)
         {
-            auto impl_name = get_impl_name(info.type.TypeNamespace(), info.type.TypeName());
-            w.write("consume_%, ", name);
+            w.write(", impl::consume_");
+            auto last = ' ';
+
+            for (auto next : name.substr(7))
+            {
+                if (last == '<')
+                {
+                    w.write(next);
+                }
+                else if (next == ':')
+                {
+                    if (last == next)
+                    {
+                        continue;
+                    }
+
+                    w.write('_');
+                    last = next;
+                }
+                else
+                {
+                    w.write(next);
+                    last = next;
+                }
+            }
         }
     }
 
@@ -2343,8 +2366,7 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
 
         if (empty(generics))
         {
-            auto format = R"(    struct __declspec(empty_bases) % :
-        %winrt::Windows::Foundation::IInspectable
+            auto format = R"(    struct __declspec(empty_bases) % : winrt::Windows::Foundation::IInspectable%
         
     {
         %(std::nullptr_t = nullptr) noexcept {}
@@ -2377,8 +2399,7 @@ struct __declspec(empty_bases) produce_dispatch_to_overridable<T, D, %>
             type_name = remove_tick(type_name);
 
             auto format = R"(    template <%>
-    struct __declspec(empty_bases) % :
-        %winrt::Windows::Foundation::IInspectable
+    struct __declspec(empty_bases) % : winrt::Windows::Foundation::IInspectable%
     {%
         %(std::nullptr_t = nullptr) noexcept {}
         %(void* ptr, take_ownership_from_abi_t) noexcept : winrt::Windows::Foundation::IInspectable(ptr, take_ownership_from_abi) {}

@@ -19,19 +19,32 @@ namespace cppwinrt
         return std::visit(visit_overload<C...>{ std::forward<C>(call)... }, std::forward<V>(variant));
     }
 
+    static auto remove_tick(std::string_view const& name)
+    {
+        if (name.size() > 2)
+        {
+            if (name[name.size() - 2] == '`')
+            {
+                return name.substr(0, name.size() - 2);
+            }
+        }
+
+        return name;
+    }
+
     struct type_name
     {
         std::string_view name;
         std::string_view name_space;
 
         explicit type_name(TypeDef const& type) :
-            name(type.TypeName()),
+            name(remove_tick(type.TypeName())),
             name_space(type.TypeNamespace())
         {
         }
 
         explicit type_name(TypeRef const& type) :
-            name(type.TypeName()),
+            name(remove_tick(type.TypeName())),
             name_space(type.TypeNamespace())
         {
         }
@@ -40,7 +53,7 @@ namespace cppwinrt
         {
             auto const& [type_namespace, type_name] = get_type_namespace_and_name(type);
             name_space = type_namespace;
-            name = type_name;
+            name = remove_tick(type_name);
         }
     };
 
@@ -67,11 +80,6 @@ namespace cppwinrt
         }
 
         return 0 == right.compare(0, left.name_space.size(), left.name_space);
-    }
-
-    static auto remove_tick(std::string_view const& name)
-    {
-        return name.substr(0, name.rfind('`'));
     }
 
     template <typename First, typename...Rest>
